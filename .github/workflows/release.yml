@@ -10,23 +10,47 @@ jobs:
     name: Create release
     runs-on: macos-13
     outputs:
-      upload_url: ${{ steps.create_release.outputs.upload_url }}
-      build_number: ${{ steps.create_release.outputs.build_number }}
+      release_id: ${{ steps.create_release.outputs.release_id }}
+      release_upload_url: ${{ steps.create_release.outputs.release_upload_url }}
+      release_tag: ${{ steps.create_release.outputs.release_tag }}
+      release_build: ${{ steps.create_release.outputs.release_build }}
     steps:
-      - name: Initialise Release
-        id: create_release
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAG_NAME: ${{ github.ref_name }}
-        run: |
-          echo "$(date +%Y%m%d%H%M%S)"
-          BUILD_NUMBER=$(echo "$TAG_NAME" | sed 's#.*/\([0-9][0-9]*\)#\1#')
-          echo "RELEASE: ${TAG_NAME}, build: ${BUILD_NUMBER}"
-          echo "build_number=${BUILD_NUMBER}" >> "$GITHUB_OUTPUT"
+      # ref: https://localheinz.com/articles/2022/01/24/creating-releases-with-github-actions/
+      - name: "Determine tag"
+        run: "echo \"RELEASE_TAG=${GITHUB_REF#refs/tags/}\" >> $GITHUB_ENV"
 
-          gh release create v1.0 --generate-notes
-          echo "Done"
-  
+      - name: "Determine build"
+        # ref: https://stackoverflow.com/a/71529816/833197
+        run: "echo \"RELEASE_BUILD=${RELEASE_TAG##*/}\" >> $GITHUB_ENV"
+
+      - name: "Create release"
+        id: create_release
+        uses: "actions/github-script@v6"
+        with:
+          github-token: "${{ secrets.GITHUB_TOKEN }}"
+          script: |
+            try {
+              const response = await github.rest.repos.createRelease({
+                draft: false,
+                generate_release_notes: true,
+                name: process.env.RELEASE_TAG,
+                owner: context.repo.owner,
+                prerelease: false,
+                repo: context.repo.repo,
+                tag_name: process.env.RELEASE_TAG,
+              });
+
+              core.exportVariable('RELEASE_ID', response.data.id);
+              core.exportVariable('RELEASE_UPLOAD_URL', response.data.upload_url);
+
+              core.setOutput('release_id', response.data.id);
+              core.setOutput('release_upload_url', response.data.upload_url);
+              core.setOutput('release_build', process.env.RELEASE_BUILD)
+              core.setOutput('release_tag', process.env.RELEASE_TAG)
+            } catch (error) {
+              core.setFailed(error.message);
+            }
+
   build:
     name: Build iOS
     runs-on: macos-13
@@ -40,7 +64,7 @@ jobs:
 
       - name: Build
         id: build
-        run: exec ./.github/scripts/build_ios ${{ needs.create-release.outputs.build_number }}
+        run: exec ./.github/scripts/build_ios ${{ needs.create-release.outputs.release_build }}
 
       - name: upload-release-asset
         uses: actions/upload-release-asset@v1
@@ -50,5 +74,5 @@ jobs:
           asset_content_type: application/zip
           asset_name: ${{ steps.build.outputs.archive_name }}
           asset_path: ${{ steps.build.outputs.archive_file }}
-          upload_url: ${{ needs.create-release.outputs.upload_url }}
+          upload_url: ${{ needs.create-release.outputs.release_upload_url }}
         
