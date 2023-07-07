@@ -25,6 +25,7 @@ jobs:
           echo "build_number=${BUILD_NUMBER}" >> "$GITHUB_OUTPUT"
 
           gh release create "${TAG_NAME}" --generate-notes
+          echo "Done"
   
   build:
     name: Build iOS
