@@ -24,7 +24,7 @@ jobs:
           echo "RELEASE: ${TAG_NAME}, build: ${BUILD_NUMBER}"
           echo "build_number=${BUILD_NUMBER}" >> "$GITHUB_OUTPUT"
 
-          gh release create "${TAG_NAME}" --generate-notes
+          gh release create v1.0 --generate-notes
           echo "Done"
   
   build:
