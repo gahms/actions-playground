@@ -21,5 +21,5 @@ xcrun xcodebuild \
   clean archive | xcpretty
 
 ditto -c -k --sequesterRsrc --keepParent "${BUILD_PATH}/${ARCHIVE_NAME}" "${BUILD_PATH}/${ARCHIVE_NAME}.zip"
-echo "::set-output name=archive_name::${ARCHIVE_NAME}.zip"
-echo "::set-output name=archive_file::${BUILD_PATH}/${ARCHIVE_NAME}.zip"
+echo "archive_name=${ARCHIVE_NAME}.zip" >> "$GITHUB_OUTPUT"
+echo "archive_file=${BUILD_PATH}/${ARCHIVE_NAME}.zip" >> "$GITHUB_OUTPUT"
