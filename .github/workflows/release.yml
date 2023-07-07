@@ -1,15 +1,35 @@
 name: Release
 
 on:
-  workflow_dispatch:
   push:
     tags: 
     - '**'
 
 jobs:
+  create-release:
+    name: Create release
+    runs-on: macos-13
+    outputs:
+      upload_url: ${{ steps.create_release.outputs.upload_url }}
+      build_number: ${{ steps.create_release.outputs.build_number }}
+    steps:
+      - name: Initialise Release
+        id: create_release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG_NAME: ${{ github.ref_name }}
+        run: |
+          BUILD_NUMBER=$(echo "$TAG_NAME" | sed 's#.*/\([0-9][0-9]*\)#\1#')
+          echo "RELEASE: ${RELEASE_NAME}, build: ${BUILD_NUMBER}"
+          echo "::set-output name=build_number::${BUILD_NUMBER}"
+
+          gh release create "${RELEASE_NAME}" 
+          #"$(date +%Y%m%d%H%M%S)"
+  
   build:
     name: Build iOS
     runs-on: macos-13
+    needs: create-release
 
     steps:
       - name: Checkout
@@ -18,4 +38,16 @@ jobs:
         run: sudo xcode-select -switch /Applications/Xcode_14.3.1.app && /usr/bin/xcodebuild -version
 
       - name: Build
-        run: exec ./.github/scripts/build_ios
+        id: build
+        run: exec ./.github/scripts/build_ios ${{ needs.create-release.outputs.build_number }}
+
+      - name: upload-release-asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          asset_content_type: application/zip
+          asset_name: ${{ steps.build.outputs.archive_name }}
+          asset_path: ${{ steps.build.outputs.archive_file }}
+          upload_url: ${{ needs.create-release.outputs.upload_url }}
+        

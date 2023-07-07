@@ -2,10 +2,24 @@
 
 set -eo pipefail
 
+CURRENT_PROJECT_VERSION=$1
+ARCHIVE_NAME="ActionsPlayground.xcarchive"
+BUILD_PATH="build"
+
 cd ios/ActionsPlayground
 
-xcodebuild \
+echo "CURRENT_PROJECT_VERSION: $CURRENT_PROJECT_VERSION"
+echo "Archive: ${BUILD_PATH}/${ARCHIVE_NAME}"
+
+xcrun xcodebuild \
   -project ActionsPlayground.xcodeproj \
   -scheme ActionsPlayground \
-  -destination platform=iOS\ Simulator,OS=16.4,name=iPhone\ 14 \
-  clean build | xcpretty
+  -configuration 'Release' \
+  #-destination platform=iOS\ Simulator,OS=16.4,name=iPhone\ 14 \
+  -archivePath "${BUILD_PATH}/${ARCHIVE_NAME}"
+  CURRENT_PROJECT_VERSION=$CURRENT_PROJECT_VERSION \
+  clean archive | xcpretty
+
+ditto -c -k --sequesterRsrc --keepParent "${BUILD_PATH}/${ARCHIVE_NAME}" "${BUILD_PATH}/${ARCHIVE_NAME}.zip"
+echo "::set-output name=archive_name::${ARCHIVE_NAME}.zip"
+echo "::set-output name=archive_file::${BUILD_PATH}/${ARCHIVE_NAME}.zip"
